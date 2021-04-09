@@ -1,8 +1,8 @@
 import uuid
 
 from rl_trader.engine.rl_environment.types.env_market_types import Market
-from rl_trader.engine.rl_environment.types.env_account_types import Wallets, Order, TokenWallet
-from rl_trader.engine.rl_environment.account_api.account_api import AccountAPI
+from rl_trader.engine.rl_environment.account_api.types.account_types import Wallets, Order, TokenWallet
+from rl_trader.engine.rl_environment.account_api.types.account_types import AccountAPI
 
 
 class FakeWallets(Wallets):
@@ -19,14 +19,14 @@ class FakeWallets(Wallets):
         self._tokens = _tokens
 
     def check_token_balance(self, token_symbol: str, amount_symbol):
-        if self.balances[token_symbol] >= amount_symbol:
+        if self.wallets[token_symbol] >= amount_symbol:
             return True
         else:
             return False
 
     def resolve_balance_from_dict(self, dict_: dict):
         for key, value in dict_:
-            self.balances[key] += value
+            self.wallets[key] += value
 
 
 class FakeOrder(Order):
@@ -70,10 +70,14 @@ class FakeOrder(Order):
 
 
 class FakeAPI(AccountAPI):
-    def __init__(self, pairs, symbols, fake_usd_start=20):
+    _market: Market
+
+    def __init__(self, symbols, fake_usd_start=20):
         super(FakeAPI, self).__init__([], order_history=[])
         self.wallets = FakeWallets(symbols, fake_usd_start)
-        self._market = Market(pairs)
+
+    def init_market(self, market_obj: Market):
+        self._market = market_obj
 
     def create_order(self, pair, order_type, price, amount):
         order_id = uuid.uuid1()
@@ -86,25 +90,38 @@ class FakeAPI(AccountAPI):
         order.update(status='cancelled')
         self._order_history.append(order)
 
-    def next_time_step(self, market_updates):
+    def step(self):
         """
-        Arguments:
-            market_updates: instance of type Market
+        :returns:
+            wallets: dict = {pair: balance}
+            open_orders: list of {'order_id': str, 'pair': str, 'order_type': str, 'price': float,'amount': float},
+            total_balance: int
+        }
         """
-        self.market = market_updates
         self._resolve_orders()
-        return self.wallets.balances, self.orders
+        return self.wallets.wallets, self.open_orders, self._compute_total_balance()
+
+    def _compute_total_balance(self):
+        # if pair is always equals to 'xYYYUSD' then we can compute the total_balance of all
+        # With self.wallets.wallets and self.markets
+        # Compute value in USD of a symbol: market[pair].close * symbol_balance
+        b: float = self.wallets.wallets['USD']
+        for pair, obj_ in self.market:
+            symbol_balance = self.wallets.wallets[pair[1:4]]
+            b += symbol_balance * obj_.close
+        return b
 
     def _remove_from_orders(self, order_id):
         return self._orders.pop(next(i for i, o in enumerate(self.orders) if order_id == o.id))
 
     def _resolve_orders(self):
-        ORDER_FEE = 2e-3    # 0.2%
-        for key, object_ in self.market:
+        ORDER_FEE = 2e-3  # 0.2%
+        for pair, object_ in self.market:
             low, high = object_.low, object_.high
-            for order in self.orders:
-                if order.is_resolvable(key, low, high):
-                    if self.wallets.check_token_balance(order.give_symbol, order.give_amount + ORDER_FEE * order.give_amount):
+            for _, order in self.orders:
+                if order.is_resolvable(pair, low, high):
+                    if self.wallets.check_token_balance(order.give_symbol,
+                                                        order.give_amount + ORDER_FEE * order.give_amount):
                         order.execute()
                         self._remove_from_orders(order.id)
                         self._order_history.append(order)
@@ -116,10 +133,3 @@ class FakeAPI(AccountAPI):
     @property
     def market(self):
         return self._market.pairs
-
-    @market.setter
-    def market(self, market_update):
-        for key, object_ in self.market.pairs:
-            if key in market_update.pairs.keys:
-                object_.low = market_update.pairs[key].low
-                object_.high = market_update.pairs[key].high

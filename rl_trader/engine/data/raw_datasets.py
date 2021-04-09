@@ -11,9 +11,9 @@ def _csv_path(path, filename):
     return f'{path}/{SUB_PATH}/{filename}.csv'
 
 
-def _get_raw_candles(start_time, end_time, symbol='tETHUSD', time_frame='1m'):
+def _get_raw_candles(start_time, end_time, pair='tETHUSD', time_frame='1m'):
     candles = get_candles(start_time=start_time, end_time=end_time,
-                          symbol=symbol, time_frame=time_frame)
+                          pair=pair, time_frame=time_frame)
     candles = np.array(candles)
     candles = np.sort(candles, axis=0)
     _t, _o, _c, _h, _l, _v = [], [], [], [], [], []
@@ -26,7 +26,7 @@ def _get_raw_candles(start_time, end_time, symbol='tETHUSD', time_frame='1m'):
     return _t, _o, _c, _h, _l, _v
 
 
-def _make_raw_ds(filename, path='datasets', symbol='tETHUSD', time_frame='1m', time_period=1):
+def _make_raw_ds(filename, path='datasets', pair='tETHUSD', time_frame='1m', time_period=1):
     _t, _o, _c, _h, _l, _v = [], [], [], [], [], []
 
     NOW = int(round(time.time() * 1000))
@@ -34,7 +34,7 @@ def _make_raw_ds(filename, path='datasets', symbol='tETHUSD', time_frame='1m', t
     for t in range(1, time_period+1):
         end_time = int(start_time + 8.64e+7 * t)
         t, o, c, h, l, v = _get_raw_candles(start_time=start_time, end_time=end_time,
-                                            symbol=symbol, time_frame=time_frame)
+                                            pair=pair, time_frame=time_frame)
         _t.extend(t), _o.extend(o), _c.extend(c), _h.extend(h), _l.extend(l), _v.extend(v)
     dict_ = {'time': _t, 'open': _o, 'close': _c, 'high': _h, 'low': _l, 'volume': _v}
     df = pd.DataFrame(dict_)
@@ -51,13 +51,13 @@ def _read_raw_csv(path, filename):
         return ds
 
 
-def get_raw_ds(path='datasets', symbol='tETHUSD', time_frame='1m', time_period=1, filename=None):
+def get_raw_ds(path='datasets', pair='tETHUSD', time_frame='1m', time_period=1, filename=None):
     if filename is None:
-        filename = (symbol + '_' + time_frame + '_' + str(time_period)).lower()
+        filename = (pair + '_' + time_frame + '_' + str(time_period)).lower()
     try:
         return _read_raw_csv(path, filename)
 
     except:
         print(f'file {filename} at {path} does not exist. Getting data from API and creating csv file...')
-        _make_raw_ds(filename, path, symbol=symbol, time_frame=time_frame, time_period=time_period)
+        _make_raw_ds(filename, path, pair=pair, time_frame=time_frame, time_period=time_period)
         return _read_raw_csv(path, filename)

@@ -1,7 +1,14 @@
 class PairMarketValue:
     """
-    Arguments:
+    :arg:
         pair: str, e.g = 'tETHUSD'
+    :param:
+        pair: str
+        open: float
+        close: float
+        high: float
+        low: float
+        volume: float
     """
     def __init__(self, pair):
         self.pair = pair
@@ -9,7 +16,12 @@ class PairMarketValue:
 
 class Market:
     """
-    Market is a type for Market objects which represent a list of PairMarketValue
+    Market is a type for Market objects: represent a list of PairMarketValue
+    :arg:
+        pairs: list(str)
+    :param
+        _pairs: list( instance( PairMarketValue ) )
+        pairs: {p.pair: p for p in self._pairs}
     """
     def __init__(self, pairs):
         self._get_pairs_object(pairs)

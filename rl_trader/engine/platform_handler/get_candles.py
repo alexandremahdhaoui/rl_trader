@@ -4,20 +4,20 @@ import asyncio
 
 def get_candles(
         start_time, end_time,
-        symbol='tETHUSD', time_frame='1m'
+        pair='tETHUSD', time_frame='1m'
 ):
     """
     Attributes:
         start_time: int
         end_time: int
-        symbol: str
+        pair: str
         time_frame: str = corresponds to candlestick time frame : 1m, 5m, 1h, 1d...
     """
     bfx = Client(logLevel='DEBUG')
 
     async def log_historical_candles():
         return await bfx.rest.get_public_candles(
-            symbol,
+            pair,
             start_time,
             end_time,
             limit=1440,
